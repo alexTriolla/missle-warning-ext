@@ -73,6 +73,15 @@ export const styles = {
     fontSize: '18px',
     textAlign: 'center' as const,
   },
+  enableSoundButton: {
+    marginTop: '10px',
+    padding: '8px 12px',
+    backgroundColor: '#3498db',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
   footer: {
     backgroundColor: '#34495e',
     color: '#ecf0f1',
@@ -81,5 +90,8 @@ export const styles = {
     textAlign: 'center' as const,
     borderBottomLeftRadius: '10px',
     borderBottomRightRadius: '10px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center' as const,
   },
 };

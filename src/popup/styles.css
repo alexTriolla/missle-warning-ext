@@ -1,0 +1,11 @@
+@keyframes flash {
+  0% {
+    background-color: #e74c3c;
+  }
+  50% {
+    background-color: #c0392b;
+  }
+  100% {
+    background-color: #e74c3c;
+  }
+}
