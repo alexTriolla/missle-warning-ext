@@ -29,6 +29,30 @@ const ICONS = {
   },
 };
 
+// Function to retrieve user's geolocation and send it to the proxy
+async function getUserGeolocation(): Promise<{
+  lat: number;
+  lon: number;
+} | null> {
+  return new Promise((resolve) => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          resolve({ lat: latitude, lon: longitude });
+        },
+        (error) => {
+          console.error('Error retrieving geolocation:', error.message);
+          resolve(null); // If geolocation fails, we send null to avoid blocking
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported by this browser.');
+      resolve(null);
+    }
+  });
+}
+
 // Function to check if the popup window is already open
 async function isPopupOpen(): Promise<boolean> {
   const windows = await chrome.windows.getAll({ populate: true });
@@ -101,7 +125,20 @@ async function openPopupIfNotOpen() {
 async function checkForWarnings() {
   try {
     console.log('Checking for missile warnings...');
-    const response = await fetch(API_URL, { method: 'GET' });
+
+    const geo = await getUserGeolocation();
+    const url = new URL(API_URL);
+
+    // If geolocation is available, include it in the request as query parameters
+    if (geo) {
+      url.searchParams.append('lat', geo.lat.toString());
+      url.searchParams.append('lon', geo.lon.toString());
+      console.log(
+        `Sending geolocation with request: lat=${geo.lat}, lon=${geo.lon}`
+      );
+    }
+
+    const response = await fetch(url.toString(), { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
