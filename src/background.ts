@@ -5,6 +5,7 @@ import { AlertResponse } from './types';
 const API_URL = import.meta.env.VITE_API_URL;
 const POLL_INTERVAL = Number(import.meta.env.VITE_POLL_INTERVAL); // in minutes
 const ALERT_TIMEOUT = Number(import.meta.env.VITE_ALERT_TIMEOUT); // in ms
+const SHOW_POPUP_DEFAULT = import.meta.env.VITE_SHOW_POPUP === 'true'; // Default popup setting
 
 // Paths to your icon images
 const ICONS = {
@@ -68,7 +69,6 @@ async function openPopupIfNotOpen() {
     console.log('Popup window is already open.');
     // Optionally, focus the existing popup window
     chrome.windows.getAll({ populate: true }, (windows) => {
-      const popupUrl = chrome.runtime.getURL('assets/index.html');
       for (const window of windows) {
         if (window.type === 'popup') {
           for (const tab of window.tabs || []) {
@@ -160,8 +160,12 @@ async function checkForWarnings() {
         }
       });
 
-      // Open the popup window if not already open
-      await openPopupIfNotOpen();
+      // Open the popup window if not already open and if showPopup is true
+      chrome.storage.local.get(['showPopup'], (result) => {
+        if (result.showPopup) {
+          openPopupIfNotOpen();
+        }
+      });
 
       // Revert the icon after the specified timeout duration (from env)
       setTimeout(() => {
@@ -175,9 +179,11 @@ async function checkForWarnings() {
             console.log('Extension icon reverted to normal state.');
           }
         });
-      }, ALERT_TIMEOUT); // Use the timeout from the environment variable
+      }, ALERT_TIMEOUT);
     } else {
-      console.log('No missile warning detected. Ensuring normal icon state.');
+      console.log('No missile warning detected.');
+
+      // Ensure the normal icon is set
       chrome.action.setIcon({ path: ICONS.NORMAL }, () => {
         if (chrome.runtime.lastError) {
           console.error('Error setting normal icon:', chrome.runtime.lastError);
@@ -250,13 +256,14 @@ async function checkForWarnings() {
           console.log('Extension icon reverted to normal state.');
         }
       });
-    }, ALERT_TIMEOUT); // Use the timeout from the environment variable
+    }, ALERT_TIMEOUT);
   }
 }
 
 // Listener for alarms (using chrome.alarms for reliable polling)
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'checkMissileWarnings') {
+    console.log('Alarm triggered:', alarm);
     checkForWarnings();
   }
 });
@@ -271,15 +278,38 @@ chrome.notifications.onButtonClicked.addListener(
   }
 );
 
-// Create an alarm to trigger every POLL_INTERVAL minutes
+// Function to initialize the popup setting
+function initializePopupSetting() {
+  chrome.storage.local.get(['showPopup'], (result) => {
+    if (result.showPopup === undefined) {
+      chrome.storage.local.set({ showPopup: SHOW_POPUP_DEFAULT }, () => {
+        console.log(`Popup setting initialized to: ${SHOW_POPUP_DEFAULT}`);
+      });
+    }
+  });
+}
+
+// Listener for extension installation
 chrome.runtime.onInstalled.addListener(() => {
+  // Initialize the popup setting
+  initializePopupSetting();
+
+  // Create the alarm
   chrome.alarms.create('checkMissileWarnings', {
     periodInMinutes: POLL_INTERVAL,
   });
   console.log(
     `Alarm "checkMissileWarnings" created to poll every ${POLL_INTERVAL} minute(s).`
   );
+
+  // Trigger the first check immediately
+  checkForWarnings();
 });
 
-// Initial check on startup
-checkForWarnings();
+// Listener for browser startup to ensure the alarm is created
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.create('checkMissileWarnings', {
+    periodInMinutes: POLL_INTERVAL,
+  });
+  console.log(`Alarm "checkMissileWarnings" recreated on browser startup.`);
+});
