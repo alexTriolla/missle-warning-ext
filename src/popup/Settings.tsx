@@ -1,24 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 interface SettingsProps {
-  showPopup: boolean;
-  showSound: boolean;
-  pollInterval: number;
-  alertTimeout: number;
-  onClose: () => void;
+  onClose: () => void; // Removed showPopup and showSound props as these should come from storage
 }
 
-const Settings: React.FC<SettingsProps> = ({
-  showPopup,
-  showSound,
-  pollInterval,
-  alertTimeout,
-  onClose,
-}) => {
-  const [popupEnabled, setPopupEnabled] = useState(showPopup);
-  const [soundEnabled, setSoundEnabled] = useState(showSound);
-  const [pollIntervalValue, setPollIntervalValue] = useState(pollInterval);
-  const [alertTimeoutValue, setAlertTimeoutValue] = useState(alertTimeout);
+const Settings: React.FC<SettingsProps> = ({ onClose }) => {
+  const [popupEnabled, setPopupEnabled] = useState<boolean>(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
+  const [pollIntervalValue, setPollIntervalValue] = useState<number>(5);
+  const [alertTimeoutValue, setAlertTimeoutValue] = useState<number>(60000);
 
   // Fetch settings from chrome.storage when the component mounts
   useEffect(() => {
@@ -33,18 +23,18 @@ const Settings: React.FC<SettingsProps> = ({
           return;
         }
         setPopupEnabled(
-          result.showPopup !== undefined ? result.showPopup : showPopup
+          result.showPopup !== undefined ? result.showPopup : false
         );
         setSoundEnabled(
-          result.showSound !== undefined ? result.showSound : showSound
+          result.showSound !== undefined ? result.showSound : false
         );
-        setPollIntervalValue(result.pollInterval || pollInterval);
-        setAlertTimeoutValue(result.alertTimeout || alertTimeout);
+        setPollIntervalValue(result.pollInterval || 5); // Default to 5 minutes
+        setAlertTimeoutValue(result.alertTimeout || 60000); // Default to 60 seconds (60000 ms)
       }
     );
-  }, [showPopup, showSound, pollInterval, alertTimeout]);
+  }, []); // Empty dependency array ensures this runs once when the component mounts
 
-  // Handle settings change
+  // Handle settings change and save to chrome.storage
   const handleSaveSettings = () => {
     chrome.storage.local.set(
       {
@@ -58,7 +48,7 @@ const Settings: React.FC<SettingsProps> = ({
           console.error('Error saving settings:', chrome.runtime.lastError);
         } else {
           console.log('Settings saved successfully.');
-          onClose(); // Close the settings after saving
+          onClose(); // Close the settings page after saving
         }
       }
     );
