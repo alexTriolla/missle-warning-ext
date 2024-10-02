@@ -30,27 +30,33 @@ const ICONS = {
 };
 
 // Function to retrieve user's geolocation and send it to the proxy
+// Function to retrieve user's geolocation using IP-based service
 async function getUserGeolocation(): Promise<{
   lat: number;
   lon: number;
 } | null> {
-  return new Promise((resolve) => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          resolve({ lat: latitude, lon: longitude });
-        },
-        (error) => {
-          console.error('Error retrieving geolocation:', error.message);
-          resolve(null); // If geolocation fails, we send null to avoid blocking
-        }
-      );
-    } else {
-      console.error('Geolocation is not supported by this browser.');
-      resolve(null);
+  try {
+    const response = await fetch('http://ip-api.com/json/');
+    if (!response.ok) {
+      throw new Error(`IP Geolocation API error: ${response.status}`);
     }
-  });
+    const data = await response.json();
+    if (data.status === 'success') {
+      const { lat, lon } = data;
+      console.log(`IP-based geolocation: lat=${lat}, lon=${lon}`);
+      return { lat, lon };
+    } else {
+      console.error('IP Geolocation API failed:', data.message);
+      return null;
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error fetching IP-based geolocation:', error.message);
+    } else {
+      console.error('Unknown error fetching IP-based geolocation');
+    }
+    return null;
+  }
 }
 
 // Function to check if the popup window is already open
