@@ -1,6 +1,6 @@
 // src/background.ts
 
-import { AlertResponse } from './types';
+import { AlertResponse, AlertItem } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const POLL_INTERVAL = Number(import.meta.env.VITE_POLL_INTERVAL); // in minutes
@@ -110,18 +110,18 @@ async function checkForWarnings() {
     console.log('Received data:', data);
 
     if (data && data.items.length > 0) {
-      const currentWarning = data.items[0];
-      console.log('Missile warning detected:', currentWarning);
+      const allWarnings: AlertItem[] = data.items;
+      console.log('Missile warnings detected:', allWarnings);
 
-      // Store the latest warning in chrome.storage
-      chrome.storage.local.set({ latestWarning: currentWarning }, () => {
+      // Store all warnings in chrome.storage
+      chrome.storage.local.set({ latestWarnings: allWarnings }, () => {
         if (chrome.runtime.lastError) {
           console.error(
-            'Error setting latestWarning in storage:',
+            'Error setting latestWarnings in storage:',
             chrome.runtime.lastError
           );
         } else {
-          console.log('Latest warning stored in chrome.storage.');
+          console.log('Latest warnings stored in chrome.storage.');
         }
       });
 
@@ -132,7 +132,7 @@ async function checkForWarnings() {
           type: 'basic',
           iconUrl: ICONS.WARNING['48'],
           title: 'Missile Warning',
-          message: `Missile warning issued. ${currentWarning.header}`,
+          message: `Missile warning issued. ${allWarnings.length} active warnings.`,
           priority: 2,
           buttons: [{ title: 'View Details' }],
         },
@@ -192,15 +192,15 @@ async function checkForWarnings() {
         }
       });
 
-      // Clear any existing latestWarning in storage
-      chrome.storage.local.remove('latestWarning', () => {
+      // Clear any existing latestWarnings in storage
+      chrome.storage.local.remove('latestWarnings', () => {
         if (chrome.runtime.lastError) {
           console.error(
-            'Error removing latestWarning from storage:',
+            'Error removing latestWarnings from storage:',
             chrome.runtime.lastError
           );
         } else {
-          console.log('Cleared latestWarning from chrome.storage.');
+          console.log('Cleared latestWarnings from chrome.storage.');
         }
       });
     }

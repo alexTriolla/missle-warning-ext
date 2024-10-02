@@ -1,15 +1,25 @@
 // src/App.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { styles } from './styles';
-import { AlertItem } from '../types';
 import './styles.css'; // Ensure styles are correctly imported
 
+interface AlertItem {
+  id: string;
+  alertid: string;
+  time: string;
+  category: string;
+  header: string;
+  text: string;
+  ttlseconds: string;
+  redwebno: string;
+  title: string;
+}
+
 const App: React.FC = () => {
-  const [warning, setWarning] = useState<AlertItem | null>(null);
+  const [warnings, setWarnings] = useState<AlertItem[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showPopup, setShowPopup] = useState<boolean>(true);
-  const [showSound, setShowSound] = useState<boolean>(false); // New state for sound toggle
+  const [showSound, setShowSound] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -35,46 +45,25 @@ const App: React.FC = () => {
       setShowSound(result.showSound !== undefined ? result.showSound : false); // Default from env
     });
 
-    const fetchLatestWarning = () => {
-      chrome.storage.local.get(['latestWarning'], (result) => {
+    const fetchLatestWarnings = () => {
+      chrome.storage.local.get(['latestWarnings'], (result) => {
         if (chrome.runtime.lastError) {
           console.error(
-            'Error getting latestWarning from storage:',
+            'Error getting latestWarnings from storage:',
             chrome.runtime.lastError
           );
           return;
         }
 
         console.log(
-          'Fetched latestWarning from storage:',
-          result.latestWarning
+          'Fetched latestWarnings from storage:',
+          result.latestWarnings
         );
 
-        if (result.latestWarning) {
-          setWarning(result.latestWarning as AlertItem);
+        if (result.latestWarnings && Array.isArray(result.latestWarnings)) {
+          setWarnings(result.latestWarnings as AlertItem[]);
           setLastUpdated(new Date());
-          console.log('Warning state updated:', result.latestWarning);
-        } else {
-          setWarning(null);
-          console.log('No latestWarning found in storage.');
-        }
-      });
-    };
-
-    fetchLatestWarning();
-
-    type StorageChanges = { [key: string]: chrome.storage.StorageChange };
-
-    const onStorageChange = (changes: StorageChanges, areaName: string) => {
-      if (areaName === 'local' && 'latestWarning' in changes) {
-        const storageChange = changes.latestWarning;
-        const newValue = storageChange.newValue as AlertItem | undefined;
-        console.log('Storage change detected for latestWarning:', newValue);
-
-        if (newValue) {
-          setWarning(newValue);
-          setLastUpdated(new Date());
-          console.log('Warning state updated from storage change:', newValue);
+          console.log('Warnings state updated:', result.latestWarnings);
 
           // Play alert sound if showSound is enabled
           if (showSound && audioRef.current) {
@@ -86,8 +75,46 @@ const App: React.FC = () => {
             });
           }
         } else {
-          setWarning(null);
-          console.log('latestWarning removed from storage.');
+          setWarnings([]);
+          console.log('No latestWarnings found in storage.');
+
+          // Stop and reset the alert sound if it's playing
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            console.log('Alert sound stopped.');
+          }
+        }
+      });
+    };
+
+    fetchLatestWarnings();
+
+    type StorageChanges = { [key: string]: chrome.storage.StorageChange };
+
+    const onStorageChange = (changes: StorageChanges, areaName: string) => {
+      if (areaName === 'local' && 'latestWarnings' in changes) {
+        const storageChange = changes.latestWarnings;
+        const newValue = storageChange.newValue as AlertItem[] | undefined;
+        console.log('Storage change detected for latestWarnings:', newValue);
+
+        if (newValue && Array.isArray(newValue)) {
+          setWarnings(newValue);
+          setLastUpdated(new Date());
+          console.log('Warnings state updated from storage change:', newValue);
+
+          // Play alert sound if showSound is enabled
+          if (showSound && audioRef.current) {
+            audioRef.current.play().catch((error) => {
+              console.error(
+                'Error playing alert sound:',
+                error.message || error
+              );
+            });
+          }
+        } else {
+          setWarnings([]);
+          console.log('latestWarnings removed from storage.');
 
           // Stop and reset the alert sound if it's playing
           if (audioRef.current) {
@@ -169,59 +196,58 @@ const App: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>Missile Alert</h1>
-        <button onClick={handleClose} style={styles.closeButton}>
+    <div className="container">
+      <header className="header">
+        <h1 className="headerTitle">Missile Alert</h1>
+        <button onClick={handleClose} className="closeButton">
           ✖
         </button>
       </header>
-      <div style={styles.content}>
-        {warning ? (
-          <div style={styles.warningBox}>
-            <p style={styles.warningMessage}>
-              Missile alert for: {warning.header}
-            </p>
-            <p style={styles.warningDetails}>Message: {warning.text}</p>
-            <p style={styles.warningDetails}>
-              Issued at: {new Date(warning.time).toLocaleTimeString()}
-            </p>
-            <p style={styles.warningDetails}>
-              Valid for: {warning.ttlseconds} seconds
-            </p>
-            <p style={styles.warningDetails}>RedWeb No: {warning.redwebno}</p>
-            {/* Add a flashing border */}
-            <div
-              style={{
-                width: '100%',
-                height: '5px',
-                backgroundColor: '#e74c3c',
-                animation: 'flash 1s infinite',
-              }}
-            ></div>
+      <div className="content">
+        {warnings.length > 0 ? (
+          <div className="warningsContainer">
+            {warnings.map((warning) => (
+              <div key={warning.id} className="warningBox">
+                <p className="warningMessage">
+                  Missile alert for: {warning.header}
+                </p>
+                <p className="warningDetails">Message: {warning.text}</p>
+                <p className="warningDetails">
+                  Issued at: {new Date(warning.time).toLocaleTimeString()}
+                </p>
+                <p className="warningDetails">
+                  Valid for: {warning.ttlseconds} seconds
+                </p>
+                <p className="warningDetails">RedWeb No: {warning.redwebno}</p>
+                {/* Add a flashing border */}
+                <div className="flashingBorder"></div>
+              </div>
+            ))}
           </div>
         ) : (
-          <p style={styles.noWarning}>No current warnings</p>
+          <p className="noWarning">No current warnings</p>
         )}
       </div>
-      <footer style={styles.footer}>
+      <footer className="footer">
         <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
-        <label>
-          <input
-            type="checkbox"
-            checked={showPopup}
-            onChange={handleTogglePopup}
-          />
-          Show Popup Window
-        </label>
-        <label style={{ marginTop: '10px' }}>
-          <input
-            type="checkbox"
-            checked={showSound}
-            onChange={handleToggleSound}
-          />
-          Enable Alert Sounds
-        </label>
+        <div className="settings">
+          <label className="settingLabel">
+            <input
+              type="checkbox"
+              checked={showPopup}
+              onChange={handleTogglePopup}
+            />
+            Show Popup Window
+          </label>
+          <label className="settingLabel">
+            <input
+              type="checkbox"
+              checked={showSound}
+              onChange={handleToggleSound}
+            />
+            Enable Alert Sounds
+          </label>
+        </div>
       </footer>
       {/* Hidden audio element is not necessary since we're using the ref */}
     </div>
