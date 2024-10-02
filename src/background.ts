@@ -53,6 +53,7 @@ async function openPopupIfNotOpen() {
         type: 'popup',
         width: 400, // Adjust as needed
         height: 600, // Adjust as needed
+        state: 'normal', // Ensure the window is not maximized
       },
       () => {
         if (chrome.runtime.lastError) {

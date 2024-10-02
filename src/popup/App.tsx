@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import './styles.css'; // Ensure styles are correctly imported
 
@@ -65,8 +63,12 @@ const App: React.FC = () => {
           setLastUpdated(new Date());
           console.log('Warnings state updated:', result.latestWarnings);
 
-          // Play alert sound if showSound is enabled
-          if (showSound && audioRef.current) {
+          // Play alert sound if showSound is enabled and there is an active warning
+          if (
+            showSound &&
+            result.latestWarnings.length > 0 &&
+            audioRef.current
+          ) {
             audioRef.current.play().catch((error) => {
               console.error(
                 'Error playing alert sound:',
@@ -103,8 +105,8 @@ const App: React.FC = () => {
           setLastUpdated(new Date());
           console.log('Warnings state updated from storage change:', newValue);
 
-          // Play alert sound if showSound is enabled
-          if (showSound && audioRef.current) {
+          // Play alert sound if showSound is enabled and there is an active warning
+          if (showSound && newValue.length > 0 && audioRef.current) {
             audioRef.current.play().catch((error) => {
               console.error(
                 'Error playing alert sound:',
@@ -142,42 +144,21 @@ const App: React.FC = () => {
   // Toggle the sound setting
   const handleToggleSound = () => {
     const newShowSound = !showSound;
-    if (newShowSound) {
-      // Attempt to play the audio to satisfy autoplay policies
-      if (audioRef.current) {
-        audioRef.current
-          .play()
-          .then(() => {
-            setShowSound(true);
-            console.log('Alert sounds enabled.');
-            chrome.storage.local.set({ showSound: true }, () => {
-              if (chrome.runtime.lastError) {
-                console.error(
-                  'Error setting showSound:',
-                  chrome.runtime.lastError
-                );
-              } else {
-                console.log('showSound state saved.');
-              }
-            });
-          })
-          .catch((error) => {
-            console.error('Error playing alert sound:', error.message || error);
-            alert(
-              'Unable to enable alert sounds. Please interact with the popup to allow sounds.'
-            );
-          });
+    setShowSound(newShowSound);
+
+    // Store the sound setting in chrome.storage
+    chrome.storage.local.set({ showSound: newShowSound }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Error setting showSound:', chrome.runtime.lastError);
+      } else {
+        console.log('showSound state saved.');
       }
-    } else {
-      // Disable alert sounds
-      setShowSound(false);
-      console.log('Alert sounds disabled.');
-      chrome.storage.local.set({ showSound: false }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('Error setting showSound:', chrome.runtime.lastError);
-        } else {
-          console.log('showSound state saved.');
-        }
+    });
+
+    // Only play sound if there's an active warning when enabling sound
+    if (newShowSound && warnings.length > 0 && audioRef.current) {
+      audioRef.current.play().catch((error) => {
+        console.error('Error playing alert sound:', error.message || error);
       });
     }
   };
