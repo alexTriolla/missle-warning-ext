@@ -155,3 +155,69 @@
   margin-right: 8px;
   transform: scale(1.2);
 }
+
+/* Main Settings Page */
+.settingsPage {
+  padding: 20px;
+  background-color: #2c3e50;
+  color: white;
+  border-radius: 8px;
+  width: 350px;
+  margin: 20px auto;
+}
+
+.settingsPage h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  text-align: center;
+}
+
+.settingsPage label {
+  display: block;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.settingsPage input[type='checkbox'] {
+  margin-left: 10px;
+  transform: scale(1.2);
+}
+
+.settingsPage input[type='number'] {
+  margin-top: 5px;
+  padding: 5px;
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid #7f8c8d;
+}
+
+.settingsButtons {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.settingsButtons button {
+  margin-right: 10px;
+  padding: 10px 15px;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.settingsButtons button:last-child {
+  background-color: #e74c3c;
+}
+
+/* Settings Button (same style as Save button) */
+.settingsButton {
+  padding: 10px 15px;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+}

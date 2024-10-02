@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Settings from './Settings'; // Import the Settings component
 import './styles.css'; // Ensure styles are correctly imported
 
 interface AlertItem {
@@ -18,6 +19,9 @@ const App: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showPopup, setShowPopup] = useState<boolean>(true);
   const [showSound, setShowSound] = useState<boolean>(false);
+  const [pollInterval, setPollInterval] = useState<number>(5); // Default poll interval
+  const [alertTimeout, setAlertTimeout] = useState<number>(60000); // Default alert timeout in ms
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false); // Manage whether to show the settings or main screen
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -30,62 +34,30 @@ const App: React.FC = () => {
       audioRef.current.preload = 'auto';
     }
 
-    // Fetch the initial settings for showing popup and sound
-    chrome.storage.local.get(['showPopup', 'showSound'], (result) => {
+    // Fetch the initial settings for showing popup, sound, poll interval, and alert timeout
+    chrome.storage.local.get(['showPopup', 'showSound', 'pollInterval', 'alertTimeout'], (result) => {
       if (chrome.runtime.lastError) {
-        console.error(
-          'Error getting settings from storage:',
-          chrome.runtime.lastError
-        );
+        console.error('Error getting settings from storage:', chrome.runtime.lastError);
         return;
       }
       setShowPopup(result.showPopup !== undefined ? result.showPopup : true); // Default from env
       setShowSound(result.showSound !== undefined ? result.showSound : false); // Default from env
+      setPollInterval(result.pollInterval || 5); // Default to 5 minutes if not set
+      setAlertTimeout(result.alertTimeout || 60000); // Default to 60 seconds if not set
     });
 
     const fetchLatestWarnings = () => {
       chrome.storage.local.get(['latestWarnings'], (result) => {
         if (chrome.runtime.lastError) {
-          console.error(
-            'Error getting latestWarnings from storage:',
-            chrome.runtime.lastError
-          );
+          console.error('Error getting latestWarnings from storage:', chrome.runtime.lastError);
           return;
         }
-
-        console.log(
-          'Fetched latestWarnings from storage:',
-          result.latestWarnings
-        );
 
         if (result.latestWarnings && Array.isArray(result.latestWarnings)) {
           setWarnings(result.latestWarnings as AlertItem[]);
           setLastUpdated(new Date());
-          console.log('Warnings state updated:', result.latestWarnings);
-
-          // Play alert sound if showSound is enabled and there is an active warning
-          if (
-            showSound &&
-            result.latestWarnings.length > 0 &&
-            audioRef.current
-          ) {
-            audioRef.current.play().catch((error) => {
-              console.error(
-                'Error playing alert sound:',
-                error.message || error
-              );
-            });
-          }
         } else {
           setWarnings([]);
-          console.log('No latestWarnings found in storage.');
-
-          // Stop and reset the alert sound if it's playing
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            console.log('Alert sound stopped.');
-          }
         }
       });
     };
@@ -96,34 +68,13 @@ const App: React.FC = () => {
 
     const onStorageChange = (changes: StorageChanges, areaName: string) => {
       if (areaName === 'local' && 'latestWarnings' in changes) {
-        const storageChange = changes.latestWarnings;
-        const newValue = storageChange.newValue as AlertItem[] | undefined;
-        console.log('Storage change detected for latestWarnings:', newValue);
+        const newValue = changes.latestWarnings?.newValue as AlertItem[] | undefined;
 
         if (newValue && Array.isArray(newValue)) {
           setWarnings(newValue);
           setLastUpdated(new Date());
-          console.log('Warnings state updated from storage change:', newValue);
-
-          // Play alert sound if showSound is enabled and there is an active warning
-          if (showSound && newValue.length > 0 && audioRef.current) {
-            audioRef.current.play().catch((error) => {
-              console.error(
-                'Error playing alert sound:',
-                error.message || error
-              );
-            });
-          }
         } else {
           setWarnings([]);
-          console.log('latestWarnings removed from storage.');
-
-          // Stop and reset the alert sound if it's playing
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            console.log('Alert sound stopped.');
-          }
         }
       }
     };
@@ -133,74 +84,50 @@ const App: React.FC = () => {
     // Cleanup listener on unmount
     return () => {
       chrome.storage.onChanged.removeListener(onStorageChange);
-      console.log('Storage change listener removed.');
     };
-  }, [showSound]); // Dependency on showSound
+  }, [showSound]);
 
   const handleClose = () => {
     window.close();
   };
 
-  // Toggle the sound setting
-  const handleToggleSound = () => {
-    const newShowSound = !showSound;
-    setShowSound(newShowSound);
-
-    // Store the sound setting in chrome.storage
-    chrome.storage.local.set({ showSound: newShowSound }, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Error setting showSound:', chrome.runtime.lastError);
-      } else {
-        console.log('showSound state saved.');
-      }
-    });
-
-    // Only play sound if there's an active warning when enabling sound
-    if (newShowSound && warnings.length > 0 && audioRef.current) {
-      audioRef.current.play().catch((error) => {
-        console.error('Error playing alert sound:', error.message || error);
-      });
-    }
+  const handleSettingsOpen = () => {
+    setIsSettingsOpen(true); // Switch to the settings layout
   };
 
-  // Toggle the popup setting
-  const handleTogglePopup = () => {
-    const newShowPopup = !showPopup;
-    chrome.storage.local.set({ showPopup: newShowPopup }, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Error setting showPopup:', chrome.runtime.lastError);
-      } else {
-        setShowPopup(newShowPopup);
-        console.log(`Popup setting updated to: ${newShowPopup ? 'ON' : 'OFF'}`);
-      }
-    });
+  const handleSettingsClose = () => {
+    setIsSettingsOpen(false); // Switch back to the main layout
   };
+
+  // If the settings page is open, render the Settings component instead of the main layout
+  if (isSettingsOpen) {
+    return (
+      <Settings
+        showPopup={showPopup}
+        showSound={showSound}
+        pollInterval={pollInterval}
+        alertTimeout={alertTimeout}
+        onClose={handleSettingsClose}
+      />
+    );
+  }
 
   return (
     <div className="container">
       <header className="header">
         <h1 className="headerTitle">Missile Alert</h1>
-        <button onClick={handleClose} className="closeButton">
-          ✖
-        </button>
+        <button onClick={handleClose} className="closeButton">✖</button>
       </header>
       <div className="content">
         {warnings.length > 0 ? (
           <div className="warningsContainer">
             {warnings.map((warning) => (
               <div key={warning.id} className="warningBox">
-                <p className="warningMessage">
-                  Missile alert for: {warning.header}
-                </p>
+                <p className="warningMessage">Missile alert for: {warning.header}</p>
                 <p className="warningDetails">Message: {warning.text}</p>
-                <p className="warningDetails">
-                  Issued at: {new Date(warning.time).toLocaleTimeString()}
-                </p>
-                <p className="warningDetails">
-                  Valid for: {warning.ttlseconds} seconds
-                </p>
+                <p className="warningDetails">Issued at: {new Date(warning.time).toLocaleTimeString()}</p>
+                <p className="warningDetails">Valid for: {warning.ttlseconds} seconds</p>
                 <p className="warningDetails">RedWeb No: {warning.redwebno}</p>
-                {/* Add a flashing border */}
                 <div className="flashingBorder"></div>
               </div>
             ))}
@@ -211,26 +138,10 @@ const App: React.FC = () => {
       </div>
       <footer className="footer">
         <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
-        <div className="settings">
-          <label className="settingLabel">
-            <input
-              type="checkbox"
-              checked={showPopup}
-              onChange={handleTogglePopup}
-            />
-            Show Popup Window
-          </label>
-          <label className="settingLabel">
-            <input
-              type="checkbox"
-              checked={showSound}
-              onChange={handleToggleSound}
-            />
-            Enable Alert Sounds
-          </label>
-        </div>
+        <button onClick={handleSettingsOpen} className="settingsButton">
+          ⚙️ Settings
+        </button>
       </footer>
-      {/* Hidden audio element is not necessary since we're using the ref */}
     </div>
   );
 };
