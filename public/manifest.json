@@ -4,13 +4,15 @@
   "version": "1.0",
   "description": "Polls API for missile warnings, changes icon on alert, and displays data in a popup.",
   "permissions": [
+    "geolocation",
     "notifications",
     "alarms",
     "storage",
     "windows"
   ],
   "host_permissions": [
-    "http://ip-api.com/*"
+    "http://ip-api.com/*",
+    "http://localhost:3010/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
