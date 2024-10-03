@@ -118,7 +118,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentLocation }) => {
   };
 
   // Determine text direction based on language
-  const direction = language === 'he' ? 'rtl' : 'ltr';
+  const direction = i18n.language === 'he' || i18n.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
     <div className="settingsPage" dir={direction}>
@@ -175,6 +175,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentLocation }) => {
         <select value={language} onChange={handleLanguageChange}>
           <option value="en">{t('English')}</option>
           <option value="he">{t('Hebrew')}</option>
+          <option value="ru">{t('Russian')}</option>
+          <option value="ar">{t('Arabic')}</option>
         </select>
       </label>
       <div className="currentLocation">

@@ -95,7 +95,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [sendGeolocationToBackground, t]); // If t is stable, it's okay; otherwise, consider excluding
+  }, [sendGeolocationToBackground]); // Removed 't' from dependencies
 
   const getAccurateGeolocation = (): Promise<{ lat: number; lon: number }> => {
     return new Promise((resolve, reject) => {
@@ -198,13 +198,13 @@ const App: React.FC = () => {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [fetchAccurateGeolocation, showSound]);
+  }, [fetchAccurateGeolocation, showSound]); // Removed fetchSettings from dependencies
 
   const handleSettingsOpen = () => setIsSettingsOpen(true);
   const handleSettingsClose = () => setIsSettingsOpen(false);
 
   // Determine the text direction based on current language
-  const direction = i18n.language === 'he' ? 'rtl' : 'ltr';
+  const direction = i18n.language === 'he' || i18n.language === 'ar' ? 'rtl' : 'ltr';
 
   if (isSettingsOpen) {
     return (

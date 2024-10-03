@@ -5,6 +5,8 @@ import { initReactI18next } from 'react-i18next';
 
 import en from './locales/en.json';
 import he from './locales/he.json';
+import ru from './locales/ru.json';
+import ar from './locales/ar.json';
 
 // Retrieve the default language from .env, default to 'en' if not set
 const DEFAULT_LANGUAGE = import.meta.env.VITE_DEFAULT_LANGUAGE || 'en';
@@ -15,6 +17,8 @@ i18n
     resources: {
       en: { translation: en },
       he: { translation: he },
+      ru: { translation: ru },
+      ar: { translation: ar },
     },
     lng: DEFAULT_LANGUAGE, // Initial language
     fallbackLng: 'en', // Fallback language if translation not found
