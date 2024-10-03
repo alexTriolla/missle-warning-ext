@@ -1,0 +1,27 @@
+{
+    "Missile Alert": "Missile Alert",
+    "Fetching your location...": "Fetching your location...",
+    "Unable to retrieve location.": "Unable to retrieve location.",
+    "Missile alert for": "Missile alert for",
+    "Message": "Message",
+    "Last updated": "Last updated",
+    "No current warnings": "No current warnings",
+    "Settings": "Settings",
+    "Enable Popup": "Enable Popup",
+    "Enable Sound": "Enable Sound",
+    "Poll Interval (minutes)": "Poll Interval (minutes)",
+    "Alert Timeout (ms)": "Alert Timeout (ms)",
+    "Enable Polling": "Enable Polling",
+    "Save": "Save",
+    "Cancel": "Cancel",
+    "Current Location": "Current Location",
+    "Latitude": "Latitude",
+    "Longitude": "Longitude",
+    "Poll interval cannot be less than 0.1 minute (6 seconds). It has been set to 0.1 minute.": "Poll interval cannot be less than 0.1 minute (6 seconds). It has been set to 0.1 minute.",
+    "Alert timeout cannot be less than 1000 milliseconds. It has been set to 1000 ms.": "Alert timeout cannot be less than 1000 milliseconds. It has been set to 1000 ms.",
+    "Language": "Language",
+    "English": "English",
+    "Hebrew": "Hebrew",
+    "Location not available.": "Location not available."
+  }
+  

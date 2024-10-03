@@ -1,5 +1,26 @@
 /* src/styles.css */
 
+:root {
+  --padding-start: 10px;
+  --padding-end: 20px;
+}
+
+[dir='rtl'] {
+  --padding-start: 20px;
+  --padding-end: 10px;
+}
+
+.container {
+  padding-inline-start: var(--padding-start);
+  padding-inline-end: var(--padding-end);
+}
+
+[dir='rtl'] .warningBox {
+  /* Example: Adjust padding or alignment */
+  padding-right: 20px;
+  padding-left: 10px;
+}
+
 .container {
   width: 350px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -191,6 +212,16 @@
   border: 1px solid #7f8c8d;
 }
 
+.settingsPage select {
+  margin-top: 5px;
+  padding: 5px;
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid #7f8c8d;
+  background-color: #ecf0f1;
+  color: #2c3e50;
+}
+
 .settingsButtons {
   text-align: center;
   margin-top: 20px;
@@ -220,4 +251,19 @@
   cursor: pointer;
   border-radius: 4px;
   font-size: 16px;
+}
+
+.refreshButton {
+  padding: 10px 15px;
+  border: none;
+  background-color: #2ecc71;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.refreshButton:hover {
+  background-color: #27ae60;
 }

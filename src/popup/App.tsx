@@ -1,39 +1,58 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Settings from './Settings'; // Import the Settings component
-import './styles.css'; // Ensure styles are correctly imported
+// src/popup/App.tsx
 
-interface AlertItem {
-  id: string;
-  alertid: string;
-  time: string;
-  category: string;
-  header: string;
-  text: string;
-  ttlseconds: string;
-  redwebno: string;
-  title: string;
-}
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Settings from './Settings';
+import './styles.css';
+import { useTranslation } from 'react-i18next';
+import { AlertItem } from '../types';
+import i18n from '../i18n';
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
+
   const [warnings, setWarnings] = useState<AlertItem[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showSound, setShowSound] = useState<boolean>(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false); // Manage whether to show the settings or main screen
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    // Initialize audio element with correct path
-    audioRef.current = new Audio(chrome.runtime.getURL('sounds/alert.mp3'));
-    audioRef.current.loop = false; // Do not loop
+  // Function to send geolocation to background
+  const sendGeolocationToBackground = useCallback(
+    (geo: { lat: number; lon: number }) => {
+      chrome.runtime.sendMessage(
+        { type: 'UPDATE_GEOLOCATION', data: geo },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              'Error sending geolocation to background:',
+              chrome.runtime.lastError
+            );
+          } else {
+            console.log('Geolocation sent to background:', response);
+          }
+        }
+      );
+    },
+    []
+  );
 
-    // Preload audio to reduce latency
-    if (audioRef.current) {
-      audioRef.current.preload = 'auto';
-    }
-
-    // Fetch the initial settings for showing popup, sound, poll interval, and alert timeout
+  // Fetch settings from chrome.storage
+  const fetchSettings = useCallback(() => {
     chrome.storage.local.get(
-      ['showPopup', 'showSound', 'pollInterval', 'alertTimeout'],
+      [
+        'showPopup',
+        'showSound',
+        'pollInterval',
+        'alertTimeout',
+        'pollingEnabled',
+        'language',
+      ],
       (result) => {
         if (chrome.runtime.lastError) {
           console.error(
@@ -42,109 +61,193 @@ const App: React.FC = () => {
           );
           return;
         }
-        setShowSound(result.showSound !== undefined ? result.showSound : false); // Default from env
+        setShowSound(result.showSound !== undefined ? result.showSound : false);
+        if (result.language && result.language !== i18n.language) {
+          // Change language only if it's different from the current language
+          i18n.changeLanguage(result.language);
+        }
       }
     );
+  }, []);
 
-    const fetchLatestWarnings = () => {
-      chrome.storage.local.get(['latestWarnings'], (result) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            'Error getting latestWarnings from storage:',
-            chrome.runtime.lastError
-          );
-          return;
+  // Fetch accurate geolocation function
+  const fetchAccurateGeolocation = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const geolocation = await getAccurateGeolocation();
+      setCurrentLocation(geolocation);
+      sendGeolocationToBackground(geolocation);
+    } catch (error: unknown) {
+      console.error('Error obtaining geolocation:', error);
+      try {
+        const ipGeo = await getIPGeolocation();
+        if (ipGeo) {
+          setCurrentLocation(ipGeo);
+          sendGeolocationToBackground(ipGeo);
+        } else {
+          setErrorMessage(t('Unable to retrieve location.'));
+        }
+      } catch (ipError: unknown) {
+        console.error('Error obtaining IP-based geolocation:', ipError);
+        setErrorMessage(t('Unable to retrieve location.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [sendGeolocationToBackground, t]); // If t is stable, it's okay; otherwise, consider excluding
+
+  const getAccurateGeolocation = (): Promise<{ lat: number; lon: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser.'));
+      } else {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            resolve({ lat: latitude, lon: longitude });
+          },
+          (error) => reject(error),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      }
+    });
+  };
+
+  const getIPGeolocation = async (): Promise<{
+    lat: number;
+    lon: number;
+  } | null> => {
+    try {
+      const response = await fetch('http://ip-api.com/json/');
+      if (!response.ok)
+        throw new Error(`IP Geolocation API error: ${response.status}`);
+      const data = await response.json();
+      if (data.status === 'success') {
+        return { lat: data.lat, lon: data.lon };
+      } else {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  };
+
+  // Separate useEffect for language changes (runs once on mount)
+  useEffect(() => {
+    // Initial fetch of settings including language
+    fetchSettings();
+  }, [fetchSettings]);
+
+  // Main useEffect for initializing audio, fetching geolocation, and handling warnings
+  useEffect(() => {
+    audioRef.current = new Audio(chrome.runtime.getURL('sounds/alert.mp3'));
+    audioRef.current.loop = false;
+    audioRef.current.preload = 'auto';
+    fetchAccurateGeolocation();
+
+    // Listen for changes in latestWarnings and language in chrome.storage
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string
+    ) => {
+      if (areaName === 'local') {
+        if ('latestWarnings' in changes) {
+          const change = changes.latestWarnings;
+          const newWarnings = change.newValue as AlertItem[] | undefined;
+          if (newWarnings) {
+            setWarnings(newWarnings);
+            setLastUpdated(new Date());
+
+            if (newWarnings.length > 0 && showSound) {
+              audioRef.current?.play();
+            }
+          }
         }
 
-        if (result.latestWarnings && Array.isArray(result.latestWarnings)) {
-          setWarnings(result.latestWarnings as AlertItem[]);
-          setLastUpdated(new Date());
-        } else {
-          setWarnings([]);
-        }
-      });
-    };
-
-    fetchLatestWarnings();
-
-    type StorageChanges = { [key: string]: chrome.storage.StorageChange };
-
-    const onStorageChange = (changes: StorageChanges, areaName: string) => {
-      if (areaName === 'local' && 'latestWarnings' in changes) {
-        const newValue = changes.latestWarnings?.newValue as
-          | AlertItem[]
-          | undefined;
-
-        if (newValue && Array.isArray(newValue)) {
-          setWarnings(newValue);
-          setLastUpdated(new Date());
-        } else {
-          setWarnings([]);
+        if ('language' in changes) {
+          const change = changes.language;
+          const newLanguage = change.newValue as string | undefined;
+          if (newLanguage && newLanguage !== i18n.language) {
+            i18n.changeLanguage(newLanguage);
+          }
         }
       }
     };
 
-    chrome.storage.onChanged.addListener(onStorageChange);
+    chrome.storage.onChanged.addListener(handleStorageChange);
 
-    // Cleanup listener on unmount
+    // Fetch initial warnings
+    chrome.storage.local.get(['latestWarnings'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error(
+          'Error getting latestWarnings from storage:',
+          chrome.runtime.lastError
+        );
+        return;
+      }
+      if (result.latestWarnings) {
+        setWarnings(result.latestWarnings);
+        setLastUpdated(new Date());
+        if (result.latestWarnings.length > 0 && showSound) {
+          audioRef.current?.play();
+        }
+      }
+    });
+
     return () => {
-      chrome.storage.onChanged.removeListener(onStorageChange);
+      chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [showSound]);
+  }, [fetchAccurateGeolocation, showSound]);
 
-  const handleClose = () => {
-    window.close();
-  };
+  const handleSettingsOpen = () => setIsSettingsOpen(true);
+  const handleSettingsClose = () => setIsSettingsOpen(false);
 
-  const handleSettingsOpen = () => {
-    setIsSettingsOpen(true); // Switch to the settings layout
-  };
+  // Determine the text direction based on current language
+  const direction = i18n.language === 'he' ? 'rtl' : 'ltr';
 
-  const handleSettingsClose = () => {
-    setIsSettingsOpen(false); // Switch back to the main layout
-  };
-
-  // If the settings page is open, render the Settings component instead of the main layout
   if (isSettingsOpen) {
-    return <Settings onClose={handleSettingsClose} />;
+    return (
+      <Settings
+        onClose={handleSettingsClose}
+        currentLocation={currentLocation}
+      />
+    );
   }
 
   return (
-    <div className="container">
+    <div className="container" dir={direction}>
       <header className="header">
-        <h1 className="headerTitle">Missile Alert</h1>
-        <button onClick={handleClose} className="closeButton">
-          ✖
-        </button>
+        <h1 className="headerTitle">{t('Missile Alert')}</h1>
       </header>
       <div className="content">
-        {warnings.length > 0 ? (
+        {loading ? (
+          <p className="loading">{t('Fetching your location...')}</p>
+        ) : errorMessage ? (
+          <p className="errorMessage">{errorMessage}</p>
+        ) : warnings.length > 0 ? (
           <div className="warningsContainer">
             {warnings.map((warning) => (
               <div key={warning.id} className="warningBox">
                 <p className="warningMessage">
-                  Missile alert for: {warning.header}
-                </p>
-                <p className="warningDetails">Message: {warning.text}</p>
-                <p className="warningDetails">
-                  Issued at: {new Date(warning.time).toLocaleTimeString()}
+                  {t('Missile alert for')} {warning.header}
                 </p>
                 <p className="warningDetails">
-                  Valid for: {warning.ttlseconds} seconds
+                  {t('Message')}: {warning.text}
                 </p>
-                <p className="warningDetails">RedWeb No: {warning.redwebno}</p>
-                <div className="flashingBorder"></div>
               </div>
             ))}
+            <p className="lastUpdated">
+              {t('Last updated')}: {lastUpdated.toLocaleTimeString()}
+            </p>
           </div>
         ) : (
-          <p className="noWarning">No current warnings</p>
+          <p className="noWarning">{t('No current warnings')}</p>
         )}
       </div>
       <footer className="footer">
-        <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
         <button onClick={handleSettingsOpen} className="settingsButton">
-          ⚙️ Settings
+          ⚙️ {t('Settings')}
         </button>
       </footer>
     </div>

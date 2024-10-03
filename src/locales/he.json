@@ -1,0 +1,27 @@
+{
+    "Missile Alert": "התראה על טיל",
+    "Fetching your location...": "מאתר את מיקומך...",
+    "Unable to retrieve location.": "לא ניתן לאתר את המיקום.",
+    "Missile alert for": "התראה על טיל עבור",
+    "Message": "הודעה",
+    "Last updated": "עודכן לאחרונה",
+    "No current warnings": "אין התראות נוכחיות",
+    "Settings": "הגדרות",
+    "Enable Popup": "הפעל חלונית קופצת",
+    "Enable Sound": "הפעל צליל",
+    "Poll Interval (minutes)": "מרווח סקר (בדקות)",
+    "Alert Timeout (ms)": "זמן תפוגה להתראה (במילישניות)",
+    "Enable Polling": "הפעל סקר",
+    "Save": "שמור",
+    "Cancel": "בטל",
+    "Current Location": "המיקום הנוכחי",
+    "Latitude": "קו רוחב",
+    "Longitude": "קו אורך",
+    "Poll interval cannot be less than 0.1 minute (6 seconds). It has been set to 0.1 minute.": "מרווח הסקר לא יכול להיות פחות מ-0.1 דקות (6 שניות). הוגדר ל-0.1 דקות.",
+    "Alert timeout cannot be less than 1000 milliseconds. It has been set to 1000 ms.": "זמן תפוגה להתראה לא יכול להיות פחות מ-1000 מילישניות. הוגדר ל-1000 מ\"ש.",
+    "Language": "שפה",
+    "English": "אנגלית",
+    "Hebrew": "עברית",
+    "Location not available.": "המיקום אינו זמין."
+  }
+  
